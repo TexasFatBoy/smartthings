@@ -1,0 +1,113 @@
+/**
+ *  Freeze Protection App
+ *
+ *  Copyright 2014 Jim Araas
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License. You may obtain a copy of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+ *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+ *  for the specific language governing permissions and limitations under the License.
+ *
+ */
+ 
+
+
+definition(
+    name: "Freeze Protection App",
+    namespace: "jaraas",
+    author: "Jim Araas",
+    description: "Kicks on an electrical device when temperature falls below 34 degrees",
+    category: "Convenience",
+    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Meta/temp_thermo.png",
+    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Meta/temp_thermo@2x.png",
+    iconX3Url: "https://s3.amazonaws.com/smartapp-icons/Meta/temp_thermo@2x.png"
+)
+
+preferences {      
+	section("Turn heat on from which device..."){
+		input "thePlug", "capability.switch" 
+        input "days1", "decimal", title: "Max runtime (days)?", required: true
+	}	
+    section("Use these sensors... "){
+		input "tempSensor", "capability.temperatureMeasurement", title: "Temperature Sensor", required: true
+    }
+    section("Use this temp settings...") {
+		input "temp1", "number", title: "Temp?"
+	}
+}
+
+def installed()
+{
+	log.debug "Installed with settings: ${settings}"
+    subscribe(tempSensor, "temperature", tempHandler)
+    subscribe(thePlug, "switch", plugHandler)   
+    initialize()
+}
+
+def updated()
+{
+	log.debug "Updated with settings: ${settings}" 
+	unsubscribe()
+	unschedule()
+    subscribe(tempSensor, "temperature", tempHandler)
+    subscribe(thePlug, "switch", plugHandler)   
+	initialize()
+}
+
+def initialize() {
+	log.debug "Initializing..."
+	state.stPlug = "off"
+    state.stFlag = 0
+}
+
+def tempHandler(evt) {	
+    log.debug "$evt.name: $evt.value"
+    def currTemp = tempSensor.latestValue("temperature")    
+    if (currTemp <= temp1) {
+        if ( state.stPlug == "off" ) {
+			log.debug "Turning heat on...set timer"
+            def message = "SmartThings has initiated freeze protection"
+            log.info message
+            sendPush(message)
+        	thePlug.on()
+            state.stPlug = "on"
+            def runTime = days1 * 86400
+            runIn( runTime, "takeAction" , [overwrite: true])
+        	} else {
+            	log.debug "Temp dropping but...alt. heat is already on"
+				}
+        } else if (currTemp > temp1)  {
+        	if ( state.stPlug == "on" ) {
+        		log.debug "Turning alt. heat off...cancelling timer"
+        		thePlug.off()
+                state.stPlug = "off"
+                unschedule("takeAction")
+                } else {
+            		log.debug "Not freezing...don't need alt. heat"
+					}
+        }
+}
+
+def plugHandler(evt) {
+	log.debug "$evt.value"
+	if (evt.value == "off") {
+		state.stPlug = "off"
+	} else if (evt.value == "on") {
+		state.stPlug = "on"
+	}
+}
+
+def takeAction() {
+//  Send message that Fan is still going...then turn off
+	if (state.stPlug == "on") {
+//    	state.stPlug = "off"
+//      thePlug.off()
+        def message = "SmartThings has detected that freeze protection has exceeded run time"
+        log.info message
+        sendPush(message)
+    }
+}
