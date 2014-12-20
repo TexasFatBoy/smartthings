@@ -26,8 +26,8 @@ definition(
 preferences {
  page(name: "Setup", title: "", nextPage:"Settings") { 
  section("Which mode change triggers the simulator? (This app will only run in selected mode(s))") {
-		input "newMode", "mode", title: "Which?", multiple: true, required: false, refreshAfterSelection:true
-	}
+        input "newMode", "mode", title: "Which?", multiple: true, required: false, refreshAfterSelection:true
+    }
   section("Fixed Light switches to turn on/off"){
     input "fswitches", "capability.switch", title: "Switches", multiple: true, required: true, refreshAfterSelection:true
   }
@@ -36,32 +36,64 @@ preferences {
   }
   section("Fixed ...start/stop times"){
     input "fstarting", "time", title: "Starting (both are required)", required: false, refreshAfterSelection:true
-	input "fending", "time", title: "Ending (both are required)", required: false, refreshAfterSelection:true
+    input "fending", "time", title: "Ending (both are required)", required: false, refreshAfterSelection:true
   }
   section("Variable ...start/stop times"){
     input "vstarting", "time", title: "Starting (both are required)", required: false, refreshAfterSelection:true
-	input "vending", "time", title: "Ending (both are required)", required: false, refreshAfterSelection:true
+    input "vending", "time", title: "Ending (both are required)", required: false, refreshAfterSelection:true
   }
   }
 }
 
 
 def installed() {
-	log.debug "Installed with settings: ${settings}"
+    log.debug "Installed with settings: ${settings}"
 
-	initialize()
+    initialize()
 }
 
 def updated() {
-	log.debug "Updated with settings: ${settings}"
+    log.debug "Updated with settings: ${settings}"
 
-	unsubscribe()
+    unsubscribe()
     unschedule()
-	initialize()
-}
-/*
-def initialize() {
-	// TODO: subscribe to attributes, devices, locations, etc.
+    initialize()
 }
 
-*/
+def initialize() {
+    if (newMode != null) {
+      subscribe(location, modeChangeHandler)
+    }
+}
+
+def modeChangeHandler(evt) {
+  if (newmode == evt.value) {
+    fixedSchedule()
+ //   variableSchedule()
+    nextEvent()
+  }
+  else {
+    unsubscribe()
+    unschedule()
+  }
+     
+}
+
+def fixedSchedule() {
+  // calculate randomized start time 
+  // calculate randomized run time
+  // delay, light on, delay, light off, end
+  def currTime = now()
+  def start = timeToday(fstarting).time
+  def stop = timeToday(fending).time
+  def delay 1 = currTime - start
+  def delay 2 = stop - start
+  if(start > currTime){
+    runIn(currTime - start,lightOnHandler)
+    runIn(currTime - stop, lightOffHandler)
+  }
+
+def lightOnHandler()
+  
+}
+
