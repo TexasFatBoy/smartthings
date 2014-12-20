@@ -1,0 +1,103 @@
+/**
+ *  Vacation Lights
+ *
+ *  Copyright 2014 Jim Araas
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License. You may obtain a copy of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+ *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+ *  for the specific language governing permissions and limitations under the License.
+ *
+ */
+definition(
+    name: "Vacation Lights",
+    namespace: "jaraas",
+    author: "Jim Araas",
+    description: "Fixed lights will operate on a slightly randomized schedule",
+    category: "Convenience",
+    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
+    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
+    iconX3Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png")
+
+preferences {
+ page(name: "Setup", title: "", nextPage:"Settings") { 
+ section("Which mode change triggers the simulator? (This app will only run in selected mode(s))") {
+        input "newMode", "mode", title: "Which?", multiple: true, required: false, refreshAfterSelection:true
+    }
+  section("Fixed Light switches to turn on/off"){
+    input "fswitches", "capability.switch", title: "Switch", required: true
+  }
+  
+  section("Fixed ...start/stop times"){
+    input "fstarting", "time", title: "Starting (both are required)", required: false, refreshAfterSelection:true
+    input "fending", "time", title: "Ending (both are required)", required: false, refreshAfterSelection:true
+  }
+
+  }
+}
+
+
+def installed() {
+    log.debug "Installed with settings: ${settings}"
+
+    initialize()
+}
+
+def updated() {
+    log.debug "Updated with settings: ${settings}"
+
+    unsubscribe()
+    unschedule()
+    initialize()
+}
+
+def initialize() {
+    if (newMode != null) {
+      subscribe(location, modeChangeHandler)
+    }
+}
+
+def modeChangeHandler(evt) {
+  if (newmode == evt.value) {
+    fixedSchedule()
+ //   variableSchedule()
+    nextEvent()
+  }
+  else {
+    unsubscribe()
+    unschedule()
+  }
+     
+}
+
+def fixedSchedule() {
+  // calculate randomized start time 
+  // calculate randomized run time
+  // delay, light on, delay, light off, end
+  def currTime = now()
+  def start = timeToday(fstarting).time
+  def stop = timeToday(fending).time
+  def delay1 = currTime - start
+  def delay2 = currTime - stop
+  if(start > currTime){
+    runIn(delay1,lightOnHandler)
+    runIn(delay2, lightOffHandler)
+  }
+
+}
+def lightOnHandler() {
+  fswitches.on()
+  break
+  }
+
+def lightOffHandler() {
+  fswitches.off()
+  break
+  } 
+  
+  
+  
